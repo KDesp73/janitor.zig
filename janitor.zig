@@ -129,8 +129,8 @@ pub const Janitor = struct {
     ///
     /// Returns the output of `git describe --tags --always` trimmed of newline.
     /// If Git is unavailable or fails, returns `null`.
-    pub fn getGitVersion(b: *std.Build) ?[]const u8 {
-        const allocator = b.allocator;
+    pub fn getGitVersion(self: *Self) ?[]const u8 {
+        const allocator = self.b.allocator;
         const result = std.process.Child.run(.{
             .allocator = allocator,
             .argv = &.{ "git", "describe", "--tags", "--always" },
@@ -140,5 +140,39 @@ pub const Janitor = struct {
             return null;
 
         return std.mem.trimRight(u8, result.stdout, "\n");
+    }
+
+    /// Adds a translated C module to the executable build.
+    ///
+    /// This function uses `addTranslateC` to compile a C source file into a Zig module,
+    /// and links it into the executable being built. Optionally, you can specify an
+    /// include directory for headers and an object file to link.
+    ///
+    /// - `name`: The name under which the C module will be imported into the root module.
+    /// - `rootSrc`: The path to the C source file to be translated.
+    /// - `include`: (Optional) A directory path to be added to the include search paths.
+    /// - `obj`: (Optional) A path to a precompiled object file to link into the executable.
+    pub fn clib(self: *Self, name: []const u8, rootSrc: []const u8, include: ?[]const u8, obj: ?[]const u8) void {
+        if(self.exeMod) |e| {
+            const c_bindings = self.b.addTranslateC(.{
+                .target = self.target,
+                .optimize = self.optimize,
+                .use_clang = true,
+                .link_libc = true,
+                .root_source_file = self.b.path(rootSrc),
+            });
+
+            e.root_module.addImport(name, c_bindings.createModule());
+
+            if (include) |i| {
+                e.addIncludePath(self.b.path(i));
+            }
+
+            if (obj) |o| {
+                e.addObjectFile(self.b.path(o));
+            }
+
+        }
+
     }
 };
