@@ -14,7 +14,7 @@ pub const Step = enum {
 /// a clean interface for setting up an executable target, managing dependencies,
 /// creating custom build steps, and running or cleaning the project.
 pub const Janitor = struct {
-    const version = "0.1.0";
+    const version = "0.1.1";
     const Self = @This();
 
     /// The main build object passed into `build.zig`.
@@ -31,9 +31,6 @@ pub const Janitor = struct {
 
     /// The name of the executable, for internal tracking.
     name: ?[]const u8,
-
-    activeSteps: [16]Step = undefined,
-    activeStepsCount: u8 = 0,
 
     /// Initializes the Janitor helper with a reference to the build object.
     pub fn init(b: *std.Build) Self {
@@ -121,8 +118,6 @@ pub const Janitor = struct {
     ///
     /// Supported steps: `.run` and `.clean`.
     pub fn step(self: *Self, s: Step) *std.Build.Step {
-        self.activeSteps[self.activeStepsCount] = s;
-        self.activeStepsCount += 1;
         return switch (s) {
             Step.run => self.addRunStep(),
             Step.clean => self.addCleanStep(),
