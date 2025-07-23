@@ -5,6 +5,7 @@ pub const Step = enum {
     run,
     clean,
     tests,
+    help,
 };
 
 /// A utility struct to simplify and organize common Zig build steps.
@@ -30,6 +31,9 @@ pub const Janitor = struct {
 
     /// The name of the executable, for internal tracking.
     name: ?[]const u8,
+
+    activeSteps: [16]Step = undefined,
+    activeStepsCount: u8 = 0,
 
     /// Initializes the Janitor helper with a reference to the build object.
     pub fn init(b: *std.Build) Self {
@@ -117,10 +121,13 @@ pub const Janitor = struct {
     ///
     /// Supported steps: `.run` and `.clean`.
     pub fn step(self: *Self, s: Step) *std.Build.Step {
+        self.activeSteps[self.activeStepsCount] = s;
+        self.activeStepsCount += 1;
         return switch (s) {
             Step.run => self.addRunStep(),
             Step.clean => self.addCleanStep(),
-            Step.tests => self.addTestStep("src")
+            Step.tests => self.addTestStep("src"),
+            Step.help => self.addHelpStep(),
         };
     }
 
@@ -162,6 +169,35 @@ pub const Janitor = struct {
             }
         }.make;
         return clean_step;
+    }
+
+    /// Adds a `help` step that prints the help message
+    fn addHelpStep(self: *Self) *std.Build.Step {
+        const s = self.b.step("help", "Print the help message");
+
+        s.makeFn = struct {
+            fn make(st: *std.Build.Step, _: std.Build.Step.MakeOptions) anyerror!void {
+                const writer = std.io.getStdOut().writer();
+                const steps = st.owner.top_level_steps;
+
+                try writer.print(
+                \\USAGE
+                \\  zig build [<STEP>]
+                \\
+                \\STEPS
+                \\
+                , .{});
+
+                var it = steps.iterator();
+                while (it.next()) |entry| {
+                    const name = entry.key_ptr.*;
+                    const stp = entry.value_ptr.*;
+                    try writer.print("  {s:<20} {s}\n", .{ name, stp.description });
+                }
+            }
+        }.make;
+
+        return s;
     }
 
     /// Adds a fully custom step with a user-defined function.
