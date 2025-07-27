@@ -136,7 +136,7 @@ pub const Janitor = struct {
     }
 
     /// Adds a `test` step that runs all tests
-    pub fn addTestStep(self: *Self, path: []const u8) *std.Build.Step {
+    fn addTestStep(self: *Self, path: []const u8) *std.Build.Step {
         const t = self.b.addTest(.{
             .root_source_file = self.b.path(path),
             .target = self.target,
